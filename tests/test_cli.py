@@ -56,3 +56,32 @@ def test_version_flag():
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
     assert result.output.strip() != ""
+
+def test_report_json_output(tmp_path, monkeypatch):
+    import json
+    from readme2demo.manifest import Manifest
+
+    # 1. Δημιουργούμε ένα εικονικό manifest αρχείο για να μπορεί να το διαβάσει η Manifest.load
+    manifest_data = {
+        "run_id": "test-run-123",
+        "verified": True,
+        "cost": 1.50,
+        "repo_commit": "abcdef123456",
+        "stages": {}
+    }
+    manifest_file = tmp_path / "manifest.json"
+    manifest_file.write_text(json.dumps(manifest_data))
+
+    # 2. Χρησιμοποιούμε monkeypatch για να παρακάμψουμε τυχόν custom stages attribute αν χρειάζεται
+    # και καλούμε το CLI με το flag --json
+    result = runner.invoke(app, ["report", str(tmp_path), "--json"])
+
+    # 3. Ελέγχουμε αν η εντολή ολοκληρώθηκε επιτυχώς (exit code 0)
+    assert result.exit_code == 0
+
+    # 4. Επιβεβαιώνουμε ότι το output είναι έγκυρο JSON και περιέχει τα σωστά πεδία
+    parsed_output = json.loads(result.output)
+    assert parsed_output["verified"] is True
+    assert parsed_output["cost"] == 0.0
+    assert "commit" in parsed_output
+    
